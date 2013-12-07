@@ -1,0 +1,55 @@
+--- /home/netlars/android/source/cm-10.1/frameworks/base/services/java/com/android/server/BatteryService.java
++++ /home/netlars/android/source/crew-cm-10.1/android/frameworks/base/services/java/com/android/server/BatteryService.java
+@@ -54,6 +54,9 @@
+ import java.io.PrintWriter;
+ import java.util.Calendar;
+ 
++import java.io.FileReader;
++import java.io.FileWriter;
++import java.io.IOException;
+ /**
+  * <p>BatteryService monitors the charging status, and charge level of the device
+  * battery.  When these values change this service broadcasts the new values
+@@ -166,7 +169,7 @@
+     private int mQuietHoursStart = 0;
+     private int mQuietHoursEnd = 0;
+     private boolean mQuietHoursDim = true;
+-
++    private static long mCount=0;
+     public BatteryService(Context context, LightsService lights, IDeviceHandler deviceHandler) {
+         mContext = context;
+         mHandler = new Handler(true /*async*/);
+@@ -324,6 +327,21 @@
+             // Process the new values.
+             processValuesLocked();
+         }
++    }
++
++    private static void writeBatteryCapacity(int level) throws IOException{
++       if (mCount == 0) {
++           if (new File("/sys/devices/platform/rk2918-battery").exists()) {         
++               FileWriter writeF = new FileWriter("/sys/devices/platform/rk2918-battery/startget");
++               writeF.write("A",0,"A".length());
++	       writeF.close();
++           }
++           if (new File("/sys/devices/platform/rk30-battery").exists()) {          
++               FileWriter writeF = new FileWriter("/sys/devices/platform/rk30-battery/startget");
++               writeF.write("A",0,"A".length());
++	       writeF.close();
++           }
++       }
+     }
+ 
+     private void processValuesLocked() {
+@@ -366,6 +384,11 @@
+                     + ", mDeviceDockBattery=[" + dockValues + "]");
+         }
+ 
++       try{
++		writeBatteryCapacity(mBatteryLevel);
++		++ mCount ;
++		}catch(IOException e){
++	} 
+         // Let the battery stats keep track of the current level.
+         try {
+             mBatteryStats.setBatteryState(mBatteryStatus, mBatteryHealth,
