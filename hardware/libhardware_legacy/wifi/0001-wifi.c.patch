@@ -1,0 +1,152 @@
+--- /home/netlars/android/source/cm-10.1/hardware/libhardware_legacy/wifi/wifi.c
++++ /home/netlars/android/source/crew-cm-10.1/android/hardware/libhardware_legacy/wifi/wifi.c
+@@ -153,6 +153,91 @@
+ /* Is either SUPP_PROP_NAME or P2P_PROP_NAME */
+ static char supplicant_prop_name[PROPERTY_KEY_MAX];
+ 
++#if 1
++enum WIFI_CHIP_TYPE_LIST{
++    RTL8188CU = 0,
++    RTL8192CU,
++    RTL8188EU,
++    RT3070,
++    BCM4329,
++    BCM4319,
++    BCM43x9,
++    BCM4330,
++    RK901,
++    RK903,
++    MT5931,
++    RT5370V2,
++};
++#define WIFI_CHIP_TYPE_PATH         "/sys/class/rkwifi/chip"
++
++// get wifi chip type, because different chip need different hostapd.
++int check_wifi_chip_type(void)
++{
++    int wififd;
++    char buf[64];
++    int wifi_chip_type = BCM4329;
++
++    wififd = open(WIFI_CHIP_TYPE_PATH, O_RDONLY);
++    if( wififd < 0 ){
++        ALOGD("Can't open %s, errno = %d", WIFI_CHIP_TYPE_PATH, errno);
++        goto done;
++    }//else
++    //  LOGD("Open %s success!", WIFI_CHIP_TYPE_PATH);
++
++    memset(buf, 0, 64);
++
++    if( 0 == read(wififd, buf, 10) ){
++        ALOGD("read failed");
++        close(wififd);
++        goto done;
++    }
++    close(wififd);
++
++    if(0 == strncmp(buf, "RTL8188CU", strlen("RTL8188CU")) )
++    {
++        wifi_chip_type = RTL8188CU;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = RTL8188CU");
++    }
++    if(0 == strncmp(buf, "RTL8188EU", strlen("RTL8188EU")) )
++    {
++        wifi_chip_type = RTL8188EU;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = RTL8188EU");
++    }
++    else if (0 == strncmp(buf, "BCM4329", strlen("BCM4329")) )
++    {
++        wifi_chip_type = BCM4329;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = BCM4329");
++    }
++    else if (0 == strncmp(buf, "BCM4330", strlen("BCM4330")) )
++    {
++        wifi_chip_type = BCM4330;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = BCM4330");
++    }
++    else if (0 == strncmp(buf, "RK901", strlen("RK901")) )
++    {
++        wifi_chip_type = RK901;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = RK901");
++    }
++    else if (0 == strncmp(buf, "RK903", strlen("RK903")) )
++    {
++        wifi_chip_type = RK903;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = RK903");
++    }
++    else if (0 == strncmp(buf, "MT5931", strlen("MT5931")) )
++    {
++        wifi_chip_type = MT5931;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = MT5931");
++    }
++    else if (0 == strncmp(buf, "RT5370V2", strlen("RT5370V2")) )
++    {
++        wifi_chip_type = RT5370V2;
++        ALOGD("Read wifi chip type OK ! wifi_chip_type = RT5370V2");
++    }
++
++done:
++    return wifi_chip_type;
++}
++#endif
+ static int is_primary_interface(const char *ifname)
+ {
+     //Treat NULL as primary interface to allow control
+@@ -288,7 +373,10 @@
+ #ifdef WIFI_DRIVER_MODULE_PATH
+     char driver_status[PROPERTY_VALUE_MAX];
+     int count = 100; /* wait at most 20 seconds for completion */
+-    char module_arg2[256];
++    int type;
++    char path[64];
++   
++ char module_arg2[256];
+ #ifdef SAMSUNG_WIFI
+     char* type = get_samsung_wifi_type();
+ 
+@@ -309,7 +397,34 @@
+     usleep(200000);
+ #endif
+ 
+-    if (insmod(DRIVER_MODULE_PATH, DRIVER_MODULE_ARG) < 0) {
++     strcpy(path, DRIVER_MODULE_PATH);
++    type = check_wifi_chip_type();
++    if((type == RK901) || (type == RK903) || (type == BCM4330)) {
++                strcpy(path, "/system/lib/modules/rkwifi.ko");
++    } 
++    else if (type == RTL8188CU) {
++		strcpy(path, "/system/lib/modules/8192cu.ko");
++    } 
++    else if (type == RTL8188EU) {
++		strcpy(path, "/system/lib/modules/8188eu.ko");
++    } 
++    else if (type == MT5931) {
++		strcpy(path, "/system/lib/modules/mt5931.ko");
++    }
++    else if (type == RT5370V2) {
++		strcpy(path, "/system/lib/modules/rt5370v2.ko");
++    }
++	// judge if the KO file exist, if not, insmod wlan.ko
++    if (access(path, F_OK) < 0) {
++        ALOGD("DRIVER_MODULE_PATH = %s (Not such file)...", path);
++        strcpy(path, DRIVER_MODULE_PATH);
++    }
++
++    ALOGD("%s: DRIVER_MODULE_PATH = %s, DRIVER_MODULE_ARG = %s", __FUNCTION__, path, DRIVER_MODULE_ARG);
++
++    if (insmod(path, DRIVER_MODULE_ARG) < 0) {
++        ALOGD("%s: driver load failed", __FUNCTION__);
++        wifi_unload_driver();
+ #endif
+ 
+ #ifdef WIFI_EXT_MODULE_NAME
+@@ -670,8 +785,7 @@
+         ALOGE("unexpected - found %d phys in /sys/class/ieee80211", n);
+         for (i = 0; i < n; i++)
+             free(namelist[i]);
+-        if (n > 0)
+-            free(namelist);
++        free(namelist);
+         return -1;
+     }
+ 
