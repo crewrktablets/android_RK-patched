@@ -1,0 +1,34 @@
+--- /home/netlars/android/source/cm-10.1/device/common/libbt/src/hardware.c
++++ /home/netlars/android/source/crew-cm-10.1/android/device/common/libbt/src/hardware.c
+@@ -337,6 +337,8 @@
+         baud = USERIAL_BAUD_3M;
+     else if (line_speed == 2000000)
+         baud = USERIAL_BAUD_2M;
++    else if (line_speed == 1500000)
++        baud = USERIAL_BAUD_1_5M;
+     else if (line_speed == 1000000)
+         baud = USERIAL_BAUD_1M;
+     else if (line_speed == 921600)
+@@ -430,6 +432,23 @@
+         ALOGI("FW patchfile: %s", p_chip_id_str);
+         return TRUE;
+     }
++
++    char bt_chip[64] = "";
++    
++    if (bt_get_chipname(bt_chip, 63) == 0)
++    {
++        ALOGI("BT module name is: %s\n", bt_chip);
++        if (!strcmp(bt_chip, "ap6210"))
++            sprintf(p_chip_id_str, "bcm20710a1");
++        else if (!strcmp(bt_chip, "ap6330") || !strcmp(bt_chip, "ap6493"))
++            sprintf(p_chip_id_str, "bcm40183b2");
++        else if (!strcmp(bt_chip, "ap6476"))
++            sprintf(p_chip_id_str, "bcm2076b1");
++        else
++            sprintf(p_chip_id_str, "%s", bt_chip);
++    }
++    ALOGI("Target HCD file name is: %s.hcd", p_chip_id_str);
+ 
+     if ((dirp = opendir(fw_patchfile_path)) != NULL)
+     {

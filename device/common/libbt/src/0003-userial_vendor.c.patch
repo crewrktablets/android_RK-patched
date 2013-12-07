@@ -1,0 +1,11 @@
+--- /home/netlars/android/source/cm-10.1/device/common/libbt/src/userial_vendor.c
++++ /home/netlars/android/source/crew-cm-10.1/android/device/common/libbt/src/userial_vendor.c
+@@ -94,6 +94,8 @@
+         *baud = B3000000;
+     else if (cfg_baud == USERIAL_BAUD_2M)
+         *baud = B2000000;
++    else if (cfg_baud == USERIAL_BAUD_1_5M)
++        *baud = B1500000;
+     else if (cfg_baud == USERIAL_BAUD_1M)
+         *baud = B1000000;
+     else if (cfg_baud == USERIAL_BAUD_921600)
